@@ -80,7 +80,7 @@ void loop()
     if (left.resetClicked())
     {
       color = CRGB::Green;
-      xPos = (xPos - 1) % MATRIX_WIDTH;
+      xPos = (MATRIX_WIDTH + xPos - 1) % MATRIX_WIDTH;
     }
     if (right.resetClicked())
     {
@@ -95,7 +95,7 @@ void loop()
     if (down.resetClicked())
     {
       color = CRGB::Yellow;
-      yPos = (yPos - 1) % MATRIX_HEIGHT;
+      yPos = (MATRIX_HEIGHT + yPos - 1) % MATRIX_HEIGHT;
     }
 
     leds[XY(xPos, yPos)] = color;
@@ -111,6 +111,5 @@ uint16_t XY(uint8_t x, uint8_t y)
   {
     return 0;
   }
-  // return (y * MATRIX_WIDTH) + x;
   return (x * MATRIX_HEIGHT) + y;
 }
