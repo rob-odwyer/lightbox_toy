@@ -38,11 +38,20 @@ Button *btns[] = {
     &up, &down, &left, &right, &interact};
 ButtonList btnList(btns); // List of button to track input from together.
 
-uint8_t xPos = 3, yPos = 3;
+struct TailSegment
+{
+  uint8_t x;
+  uint8_t y;
+};
+
+TailSegment tail[NUM_LEDS];
+uint8_t headIndex = 0;
+
 CRGB color = CRGB::White;
 
 void setup()
 {
+  // initialize LED matrix
   FastLED.addLeds<CHIPSET, LED_MATRIX_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalSMD5050);
   FastLED.setBrightness(BRIGHTNESS);
 
@@ -52,55 +61,75 @@ void setup()
   FastLED.setBrightness(BRIGHTNESS);
   leds.fill_rainbow(0, 5);
   FastLED.show();
-
-  delay(500);
+  delay(200);
   FastLED.clear();
+  delay(200);
 
-  leds[0] = CRGB::Red;
-  leds[1] = CRGB::Green;
-  leds[2] = CRGB::Blue;
-
-  leds[XY(3, 3)] = CRGB::White;
-  leds[XY(4, 3)] = CRGB::Blue;
-  leds[XY(3, 4)] = CRGB::Red;
-  leds[XY(2, 3)] = CRGB::Green;
-  leds[XY(3, 2)] = CRGB::Yellow;
-
-  FastLED.show();
+  // initialize tail array
+  for (int i = 1; i < NUM_LEDS; i++)
+  {
+    tail[i] = TailSegment{0, 0};
+  }
+  tail[headIndex].x = 3;
+  tail[headIndex].y = 3;
 }
 
 void loop()
 {
   btnList.handle();
 
-  if (btnList.anyClicked())
+  uint8_t headX = tail[headIndex].x;
+  uint8_t headY = tail[headIndex].y;
+  bool moved = false;
+
+  // Process button input and move head
+  if (left.resetClicked())
   {
-    FastLED.clear();
-
-    if (left.resetClicked())
-    {
-      color = CRGB::Green;
-      xPos = (MATRIX_WIDTH + xPos - 1) % MATRIX_WIDTH;
-    }
-    if (right.resetClicked())
-    {
-      color = CRGB::Blue;
-      xPos = (xPos + 1) % MATRIX_WIDTH;
-    }
-    if (up.resetClicked())
-    {
-      color = CRGB::Red;
-      yPos = (yPos + 1) % MATRIX_HEIGHT;
-    }
-    if (down.resetClicked())
-    {
-      color = CRGB::Yellow;
-      yPos = (MATRIX_HEIGHT + yPos - 1) % MATRIX_HEIGHT;
-    }
-
-    leds[XY(xPos, yPos)] = color;
-    FastLED.show();
+    moved = true;
+    headX = (MATRIX_WIDTH + headX - 1) % MATRIX_WIDTH;
   }
+  if (right.resetClicked())
+  {
+    moved = true;
+    headX = (headX + 1) % MATRIX_WIDTH;
+  }
+  if (up.resetClicked())
+  {
+    moved = true;
+    headY = (headY + 1) % MATRIX_HEIGHT;
+  }
+  if (down.resetClicked())
+  {
+    moved = true;
+    headY = (MATRIX_HEIGHT + headY - 1) % MATRIX_HEIGHT;
+  }
+
+  // Handle creating new tail segments by advancing the head
+  if (moved)
+  {
+    headIndex = (headIndex + 1) % NUM_LEDS;
+    if (headIndex == 0)
+    {
+      // TODO: moved off the last square, cue victory sequence
+    }
+    tail[headIndex].x = headX;
+    tail[headIndex].y = headY;
+  }
+
+  FastLED.clear();
+
+  leds[XY(headX, headY)] = CRGB::White;
+
+  // render the tail
+  for (int8_t tailIndex = headIndex; tailIndex >= 0; tailIndex--)
+  {
+    headX = tail[tailIndex].x;
+    headY = tail[tailIndex].y;
+
+    leds[XY(headX, headY)] = tailIndex == headIndex ? CRGB::White : CRGB::Green;
+  }
+
+  FastLED.show();
 }
 
 // This function will return the right 'led index number' for
