@@ -47,7 +47,10 @@ struct TailSegment
 TailSegment tail[NUM_LEDS];
 uint8_t headIndex = 0;
 
+// Keep track of visited squares in a 64-bit bitmask
 uint64_t visited = 0;
+
+CRGBPalette16 rainbow;
 
 void setup()
 {
@@ -72,6 +75,8 @@ void setup()
   }
   tail[headIndex].x = 3;
   tail[headIndex].y = 3;
+
+  rainbow = RainbowColors_p;
 }
 
 void loop()
@@ -132,7 +137,14 @@ void loop()
     headX = tail[tailIndex].x;
     headY = tail[tailIndex].y;
 
-    leds[XY(headX, headY)] = tailIndex == headIndex ? CRGB::White : CRGB::Green;
+    if (tailIndex == headIndex)
+    {
+      leds[XY(headX, headY)] = CRGB::White;
+    }
+    else
+    {
+      leds[XY(headX, headY)] = ColorFromPalette(rainbow, map(tailIndex, 0, NUM_LEDS, 255, 0), 255);
+    }
   }
 
   FastLED.show();
