@@ -47,7 +47,7 @@ struct TailSegment
 TailSegment tail[NUM_LEDS];
 uint8_t headIndex = 0;
 
-CRGB color = CRGB::White;
+uint64_t visited = 0;
 
 void setup()
 {
@@ -104,6 +104,14 @@ void loop()
     headY = (MATRIX_HEIGHT + headY - 1) % MATRIX_HEIGHT;
   }
 
+  // Check if the square has been visited already and block movement if so
+  uint64_t targetIndex = XY(headX, headY);
+  if (visited & (1ULL << targetIndex))
+  {
+    moved = false;
+  }
+  visited |= (1ULL << targetIndex);
+
   // Handle creating new tail segments by advancing the head
   if (moved)
   {
@@ -117,8 +125,6 @@ void loop()
   }
 
   FastLED.clear();
-
-  leds[XY(headX, headY)] = CRGB::White;
 
   // render the tail
   for (int8_t tailIndex = headIndex; tailIndex >= 0; tailIndex--)
