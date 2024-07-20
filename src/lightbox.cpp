@@ -1,11 +1,13 @@
 #include <Arduino.h>
 #include <FastLED.h>
 #include <AbleButtons.h>
+#include "snakes.h"
 
 using Button = AblePullupClickerButton;
 using ButtonList = AblePullupClickerButtonList;
 
 uint16_t XY(uint8_t x, uint8_t y);
+void renderTail(TailSegment *tail, int8_t headIndex, CRGB *leds, CRGBPalette16 &palette);
 
 // Arduino pins used for IO
 #define BUTTON_UP_PIN 14       // PC0, purple wire
@@ -38,12 +40,6 @@ Button *btns[] = {
     &up, &down, &left, &right, &interact};
 ButtonList btnList(btns); // List of button to track input from together.
 
-struct TailSegment
-{
-  uint8_t x;
-  uint8_t y;
-};
-
 TailSegment tail[NUM_LEDS];
 uint8_t headIndex = 0;
 
@@ -54,29 +50,41 @@ CRGBPalette16 rainbow;
 
 void setup()
 {
-  // initialize LED matrix
-  FastLED.addLeds<CHIPSET, LED_MATRIX_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalSMD5050);
-  FastLED.setBrightness(BRIGHTNESS);
-
-  btnList.begin();
-
-  FastLED.clear();
-  FastLED.setBrightness(BRIGHTNESS);
-  leds.fill_rainbow(0, 5);
-  FastLED.show();
-  delay(200);
-  FastLED.clear();
-  delay(200);
-
   // initialize tail array
   for (int i = 1; i < NUM_LEDS; i++)
   {
     tail[i] = TailSegment{0, 0};
   }
-  tail[headIndex].x = 3;
-  tail[headIndex].y = 3;
+
+  // initialize LED matrix
+  FastLED.addLeds<CHIPSET, LED_MATRIX_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalSMD5050);
+  FastLED.setBrightness(BRIGHTNESS);
+
+  FastLED.clear();
+
+  for (int i = 0; i < HILBERT_CURVE_SIZE; i++)
+  {
+    tail[i] = HILBERT_CURVE[i];
+    headIndex = i;
+  }
 
   rainbow = RainbowColors_p;
+
+  renderTail(tail, headIndex, leds, rainbow);
+  FastLED.show();
+
+  delay(500);
+
+  for (; headIndex > 0; headIndex--)
+  {
+    FastLED.clear();
+    renderTail(tail, headIndex, leds, rainbow);
+    FastLED.show();
+    delay(50);
+  }
+
+  // Initialize all buttons
+  btnList.begin();
 }
 
 void loop()
@@ -109,17 +117,17 @@ void loop()
     headY = (MATRIX_HEIGHT + headY - 1) % MATRIX_HEIGHT;
   }
 
-  // Check if the square has been visited already and block movement if so
-  uint64_t targetIndex = XY(headX, headY);
-  if (visited & (1ULL << targetIndex))
-  {
-    moved = false;
-  }
-  visited |= (1ULL << targetIndex);
-
   // Handle creating new tail segments by advancing the head
   if (moved)
   {
+    // Check if the square has been visited already and block movement if so
+    uint64_t targetIndex = XY(headX, headY);
+    if (visited & (1ULL << targetIndex))
+    {
+      moved = false;
+    }
+    visited |= (1ULL << targetIndex);
+
     headIndex = (headIndex + 1) % NUM_LEDS;
     if (headIndex == 0)
     {
@@ -130,23 +138,7 @@ void loop()
   }
 
   FastLED.clear();
-
-  // render the tail
-  for (int8_t tailIndex = headIndex; tailIndex >= 0; tailIndex--)
-  {
-    headX = tail[tailIndex].x;
-    headY = tail[tailIndex].y;
-
-    if (tailIndex == headIndex)
-    {
-      leds[XY(headX, headY)] = CRGB::White;
-    }
-    else
-    {
-      leds[XY(headX, headY)] = ColorFromPalette(rainbow, map(tailIndex, 0, NUM_LEDS, 255, 0), 255);
-    }
-  }
-
+  renderTail(tail, headIndex, leds, rainbow);
   FastLED.show();
 }
 
@@ -159,4 +151,22 @@ uint16_t XY(uint8_t x, uint8_t y)
     return 0;
   }
   return (x * MATRIX_HEIGHT) + y;
+}
+
+void renderTail(TailSegment *tail, int8_t headIndex, CRGB *leds, CRGBPalette16 &palette)
+{
+  for (int8_t tailIndex = headIndex; tailIndex >= 0; tailIndex--)
+  {
+    uint8_t headX = tail[tailIndex].x;
+    uint8_t headY = tail[tailIndex].y;
+
+    if (tailIndex == headIndex)
+    {
+      leds[XY(headX, headY)] = CRGB::White;
+    }
+    else
+    {
+      leds[XY(headX, headY)] = ColorFromPalette(palette, map(tailIndex, 0, NUM_LEDS, 255, 0), 255);
+    }
+  }
 }
