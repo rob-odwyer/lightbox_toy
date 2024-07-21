@@ -62,9 +62,12 @@ void setup()
 
   FastLED.clear();
 
+  // get random index into HILBERT_CURVE
+  randomSeed(analogRead(DIAL_INPUT_PIN));
+  int curveStartIndex = random(0, HILBERT_CURVE_SIZE);
   for (int i = 0; i < HILBERT_CURVE_SIZE; i++)
   {
-    tail[i] = HILBERT_CURVE[i];
+    tail[i] = HILBERT_CURVE[(curveStartIndex + i) % HILBERT_CURVE_SIZE];
     headIndex = i;
   }
 
@@ -72,8 +75,6 @@ void setup()
 
   renderTail(tail, headIndex, leds, rainbow);
   FastLED.show();
-
-  delay(500);
 
   for (; headIndex > 0; headIndex--)
   {
