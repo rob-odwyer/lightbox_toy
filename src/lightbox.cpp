@@ -164,6 +164,8 @@ uint16_t XY(uint8_t x, uint8_t y)
 
 void renderTail(TailSegment *tail, int8_t headIndex, CRGB *leds, CRGBPalette16 &palette)
 {
+  int dialValue = map(analogRead(DIAL_INPUT_PIN), 0, 1023, 0, 255);
+
   for (int8_t tailIndex = headIndex; tailIndex >= 0; tailIndex--)
   {
     uint8_t headX = tail[tailIndex].x;
@@ -175,7 +177,7 @@ void renderTail(TailSegment *tail, int8_t headIndex, CRGB *leds, CRGBPalette16 &
     }
     else
     {
-      leds[XY(headX, headY)] = ColorFromPalette(palette, map(tailIndex, 0, NUM_LEDS, 255, 0), 255);
+      leds[XY(headX, headY)] = ColorFromPalette(palette, (map(tailIndex, 0, NUM_LEDS, 255, 0) + dialValue) % 255, 255);
     }
   }
 }
