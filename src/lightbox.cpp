@@ -8,6 +8,7 @@ using ButtonList = AblePullupClickerButtonList;
 
 uint16_t XY(uint8_t x, uint8_t y);
 void renderTail(TailSegment *tail, int8_t headIndex, CRGB *leds, CRGBPalette16 &palette);
+int8_t shrinkTailAnimation(TailSegment *tail, int8_t headIndex, CRGB *leds, CRGBPalette16 &palette);
 
 // Arduino pins used for IO
 #define BUTTON_UP_PIN 14       // PC0, purple wire
@@ -59,10 +60,12 @@ void setup()
   // initialize LED matrix
   FastLED.addLeds<CHIPSET, LED_MATRIX_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalSMD5050);
   FastLED.setBrightness(BRIGHTNESS);
-
   FastLED.clear();
 
-  // get random index into HILBERT_CURVE
+  // initialize rainbow palette
+  rainbow = RainbowColors_p;
+
+  // get random index into HILBERT_CURVE and copy shifted curve into tail array
   randomSeed(analogRead(DIAL_INPUT_PIN));
   int curveStartIndex = random(0, HILBERT_CURVE_SIZE);
   for (int i = 0; i < HILBERT_CURVE_SIZE; i++)
@@ -71,18 +74,7 @@ void setup()
     headIndex = i;
   }
 
-  rainbow = RainbowColors_p;
-
-  renderTail(tail, headIndex, leds, rainbow);
-  FastLED.show();
-
-  for (; headIndex > 0; headIndex--)
-  {
-    FastLED.clear();
-    renderTail(tail, headIndex, leds, rainbow);
-    FastLED.show();
-    delay(50);
-  }
+  headIndex = shrinkTailAnimation(tail, headIndex, leds, rainbow);
 
   // Initialize all buttons
   btnList.begin();
@@ -129,9 +121,11 @@ void loop()
   if (moved)
   {
     headIndex = (headIndex + 1) % NUM_LEDS;
-    if (headIndex == 0)
+    if (headIndex == (NUM_LEDS - 1))
     {
-      // TODO: moved off the last square, cue victory sequence
+      // Moved off the last square, cue victory sequence
+      headIndex = shrinkTailAnimation(tail, headIndex, leds, rainbow);
+      return;
     }
     tail[headIndex].x = headX;
     tail[headIndex].y = headY;
@@ -172,4 +166,16 @@ void renderTail(TailSegment *tail, int8_t headIndex, CRGB *leds, CRGBPalette16 &
       leds[XY(headX, headY)] = ColorFromPalette(palette, map(tailIndex, 0, NUM_LEDS, 255, 0), 255);
     }
   }
+}
+
+int8_t shrinkTailAnimation(TailSegment *tail, int8_t headIndex, CRGB *leds, CRGBPalette16 &palette)
+{
+  for (; headIndex > 0; headIndex--)
+  {
+    FastLED.clear();
+    renderTail(tail, headIndex, leds, palette);
+    FastLED.show();
+    delay(50);
+  }
+  return headIndex;
 }
