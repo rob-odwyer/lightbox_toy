@@ -118,17 +118,16 @@ void loop()
     headY = (MATRIX_HEIGHT + headY - 1) % MATRIX_HEIGHT;
   }
 
+  // Check if the square has been visited already and block movement if so
+  uint64_t targetIndex = XY(headX, headY);
+  if (visited & (1ULL << targetIndex))
+  {
+    moved = false;
+  }
+
   // Handle creating new tail segments by advancing the head
   if (moved)
   {
-    // Check if the square has been visited already and block movement if so
-    uint64_t targetIndex = XY(headX, headY);
-    if (visited & (1ULL << targetIndex))
-    {
-      moved = false;
-    }
-    visited |= (1ULL << targetIndex);
-
     headIndex = (headIndex + 1) % NUM_LEDS;
     if (headIndex == 0)
     {
@@ -136,6 +135,9 @@ void loop()
     }
     tail[headIndex].x = headX;
     tail[headIndex].y = headY;
+
+    // Mark the square as visited
+    visited |= (1ULL << targetIndex);
   }
 
   FastLED.clear();
