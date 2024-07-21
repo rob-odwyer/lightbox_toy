@@ -91,23 +91,35 @@ void loop()
   // Process button input and move head
   if (left.resetClicked())
   {
-    moved = true;
-    headX = (MATRIX_WIDTH + headX - 1) % MATRIX_WIDTH;
+    if (headX > 0)
+    {
+      moved = true;
+      headX = headX - 1;
+    }
   }
   if (right.resetClicked())
   {
-    moved = true;
-    headX = (headX + 1) % MATRIX_WIDTH;
+    if (headX < MATRIX_WIDTH - 1)
+    {
+      moved = true;
+      headX = headX + 1;
+    }
   }
   if (up.resetClicked())
   {
-    moved = true;
-    headY = (headY + 1) % MATRIX_HEIGHT;
+    if (headY < MATRIX_HEIGHT - 1)
+    {
+      moved = true;
+      headY = headY + 1;
+    }
   }
   if (down.resetClicked())
   {
-    moved = true;
-    headY = (MATRIX_HEIGHT + headY - 1) % MATRIX_HEIGHT;
+    if (headY > 0)
+    {
+      moved = true;
+      headY = headY - 1;
+    }
   }
 
   // Check if the square has been visited already and block movement if so
