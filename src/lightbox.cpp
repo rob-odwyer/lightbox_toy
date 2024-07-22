@@ -6,6 +6,7 @@
 using Button = AblePullupClickerButton;
 using ButtonList = AblePullupClickerButtonList;
 
+void handleMovement(uint8_t currentX, uint8_t currentY, uint8_t targetX, uint8_t targetY);
 uint16_t XY(uint8_t x, uint8_t y);
 void renderTail(TailSegment *tail, int8_t headIndex, CRGB *leds, CRGBPalette16 &palette);
 int8_t shrinkTailAnimation(TailSegment *tail, int8_t headIndex, CRGB *leds, CRGBPalette16 &palette);
@@ -42,6 +43,7 @@ Button *btns[] = {
 ButtonList btnList(btns); // List of button to track input from together.
 
 TailSegment tail[NUM_LEDS];
+// This is an index into the tail array indicating the current head
 uint8_t headIndex = 0;
 
 // Keep track of visited squares in a 64-bit bitmask
@@ -84,71 +86,102 @@ void loop()
 {
   btnList.handle();
 
-  uint8_t headX = tail[headIndex].x;
-  uint8_t headY = tail[headIndex].y;
+  uint8_t currentX = tail[headIndex].x;
+  uint8_t currentY = tail[headIndex].y;
+  uint8_t targetX = currentX;
+  uint8_t targetY = currentY;
   bool moved = false;
 
   // Process button input and move head
   if (left.resetClicked())
   {
-    if (headX > 0)
+    if (targetX > 0)
     {
       moved = true;
-      headX = headX - 1;
+      targetX = targetX - 1;
     }
   }
   if (right.resetClicked())
   {
-    if (headX < MATRIX_WIDTH - 1)
+    if (targetX < MATRIX_WIDTH - 1)
     {
       moved = true;
-      headX = headX + 1;
+      targetX = targetX + 1;
     }
   }
   if (up.resetClicked())
   {
-    if (headY < MATRIX_HEIGHT - 1)
+    if (targetY < MATRIX_HEIGHT - 1)
     {
       moved = true;
-      headY = headY + 1;
+      targetY = targetY + 1;
     }
   }
   if (down.resetClicked())
   {
-    if (headY > 0)
+    if (targetY > 0)
     {
       moved = true;
-      headY = headY - 1;
+      targetY = targetY - 1;
     }
   }
 
-  // Check if the square has been visited already and block movement if so
-  uint64_t targetIndex = XY(headX, headY);
-  if (visited & (1ULL << targetIndex))
-  {
-    moved = false;
-  }
-
-  // Handle creating new tail segments by advancing the head
   if (moved)
   {
-    headIndex = (headIndex + 1) % NUM_LEDS;
-    if (headIndex == (NUM_LEDS - 1))
-    {
-      // Moved off the last square, cue victory sequence
-      headIndex = shrinkTailAnimation(tail, headIndex, leds, rainbow);
-      return;
-    }
-    tail[headIndex].x = headX;
-    tail[headIndex].y = headY;
+    handleMovement(currentX, currentY, targetX, targetY);
+  }
 
-    // Mark the square as visited
-    visited |= (1ULL << targetIndex);
+  if (headIndex == (NUM_LEDS - 1))
+  {
+    // Moved off the last square, cue victory sequence
+    headIndex = shrinkTailAnimation(tail, headIndex, leds, rainbow);
+
+    // Skip rendering the last frame twice
+    return;
   }
 
   FastLED.clear();
   renderTail(tail, headIndex, leds, rainbow);
   FastLED.show();
+}
+
+void handleMovement(uint8_t currentX, uint8_t currentY, uint8_t targetX, uint8_t targetY)
+{
+  uint64_t targetIndex = XY(targetX, targetY);
+
+  // Check for moving back on neck
+  if (headIndex > 0)
+  {
+    if (targetX == tail[headIndex - 1].x && targetY == tail[headIndex - 1].y)
+    {
+      uint64_t currentIndex = XY(currentX, currentY);
+
+      // Mark the currently occupied square as unvisited
+      visited &= ~(1ULL << currentIndex);
+
+      // Retract the head to the previous position
+      headIndex--;
+
+      return;
+    }
+  }
+
+  // Check if the square has been visited already and block movement if so
+  if (visited & (1ULL << targetIndex))
+  {
+    return;
+  }
+
+  // Handle creating new tail segments by advancing the head
+  // This shouldn't be allowed to wrap around, but it makes it more obvious when a bug has happened.
+  headIndex = (headIndex + 1) % NUM_LEDS;
+  tail[headIndex].x = targetX;
+  tail[headIndex].y = targetY;
+
+  // Mark the square as visited
+  visited |= (1ULL << targetIndex);
+
+  return;
 }
 
 // This function will return the right 'led index number' for
